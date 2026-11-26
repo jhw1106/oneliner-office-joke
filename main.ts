@@ -48,8 +48,20 @@ const outPath = join(outDir, "entry.txt");
 writeFileSync(outPath, JOKE, "utf8");
 
 // Read it back and confirm the bytes on disk are exactly the joke we
-// meant to write — a silent encoding slip would fail the gate.
-if (readFileSync(outPath, "utf8") !== JOKE) {
-  fail("written entry.txt does not match the joke");
+// meant to write — a silent encoding slip would fail the gate. Compare
+// raw bytes, not decoded strings: a string comparison would silently
+// paper over invalid UTF-8 (replacement characters), while a byte
+// comparison catches any encoding drift. Also confirm the file holds
+// exactly one line with no trailing newline byte.
+const written = readFileSync(outPath);
+const expected = Buffer.from(JOKE, "utf8");
+if (!written.equals(expected)) {
+  fail("written entry.txt does not match the joke byte-for-byte");
+}
+if (written.length !== byteLength) {
+  fail(`written entry.txt is ${written.length} bytes, expected ${byteLength}`);
+}
+if (written.includes(0x0a) || written.includes(0x0d)) {
+  fail("written entry.txt contains a newline byte");
 }
 console.log(`wrote entry.txt (${length} characters, ${byteLength} bytes) to ${outDir}`);
